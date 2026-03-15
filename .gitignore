@@ -39,3 +39,11 @@
 
 # debug information files
 *.dwo
+
+#Linux executables
+main
+a.out
+
+# Build folders
+build/
+cmake-build-*/
