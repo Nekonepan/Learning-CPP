@@ -2,7 +2,10 @@
 // adhi prahara. 2018
 
 // deklarasikan semua header disini
-// #include <windows.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <GL/glut.h>
 
 #include <stdio.h>
