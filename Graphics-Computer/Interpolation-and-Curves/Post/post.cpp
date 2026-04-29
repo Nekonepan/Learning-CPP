@@ -1,5 +1,9 @@
 // deklarasikan semua header disini
+
+#ifdef _WIN32
 #include <windows.h>
+#endif
+
 #include <GL/glut.h>
 
 #include <stdio.h>
@@ -217,7 +221,7 @@ int main(int argc, char** argv)
 	glutInitWindowSize(480, 480);
 	glutInitWindowPosition(100, 100);
 
-	glutCreateWindow("NAMA / NIM - CUBIC INTERPOLASI GRAFKOM PERTEMUAN 3");
+	glutCreateWindow("LUTFAN ALAUDIN NAJA / 2400018032 - CUBIC INTERPOLASI GRAFKOM PERTEMUAN 3");
 
 	init();
 
