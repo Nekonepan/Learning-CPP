@@ -61,6 +61,7 @@ int main() {
     cout << "-------------------------------------\n";
     cout << left << setw(25) << "Total Ditukar" << ": Rp " << total << endl;
     cout << left << setw(25) << "Jumlah uang pecahan" << ": " << jumlah_uang_pecahan << " Lembar" << endl;
+	cout << left << setw(25) << "Sisa" << ": " << total - A << endl;
 
     if (total != A) {
         cout << "Catatan: Tidak bisa ditukar secara tepat\n";
