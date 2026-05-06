@@ -38,9 +38,37 @@ struct Vec3
 // fungsi untuk menggambar obyek kubus
 void drawObject()
 {
-	// ICOSAHEDRON
+	//WIRECUBE
+    glPushMatrix();
+    
     // operasi transformasi translasi obyek ke arah sumbu X, Y atau Z
-    glTranslatef(objectPositionX + 0.3, objectPositionY + 0.2, objectPositionZ);
+    glTranslatef(objectPositionX, objectPositionY, objectPositionZ);
+    
+    // operasi transformasi scaling obyek ke arah sumbu X, Y atau Z
+    glScalef(objectScaleX, objectScaleY, objectScaleZ);
+    
+    // operasi transformasi rotasi obyek ke arah kanan-kiri
+    glRotatef(objectAngleY, 0.0f, 1.0f, 0.0f);
+    
+    glPushMatrix();
+    
+    // operasi transformasi rotasi obyek ke arah atas-bawah
+    glRotatef(objectAngleX, 1.0f, 0.0f, 0.0f);
+    
+    // set warna obyek ke warna hijau (0.0f, 1.0f, 0.0f)
+    glColor3f(0.0f, 0.0f, 0.0f);
+    
+    glutWireCube(4.5f); // menggambar obyek kubus
+    
+    glPopMatrix();
+    
+    glPopMatrix();
+    
+    //ICOSAHEDRON
+    glPushMatrix();
+    
+    // operasi transformasi translasi obyek ke arah sumbu X, Y atau Z
+    glTranslatef(objectPositionX-1.5, objectPositionY-1, objectPositionZ-1);
     
     // operasi transformasi scaling obyek ke arah sumbu X, Y atau Z
     glScalef(objectScaleX, objectScaleY, objectScaleZ);
@@ -62,11 +90,11 @@ void drawObject()
     
     glPopMatrix();
     
-    // DONUT
+    //SOLID THORUS
     glPushMatrix();
     
     // operasi transformasi translasi obyek ke arah sumbu X, Y atau Z
-    glTranslatef(objectPositionX, objectPositionY, objectPositionZ);
+    glTranslatef(objectPositionX, objectPositionY+1, objectPositionZ);
     
     // operasi transformasi scaling obyek ke arah sumbu X, Y atau Z
     glScalef(objectScaleX, objectScaleY, objectScaleZ);
@@ -82,17 +110,17 @@ void drawObject()
     // set warna obyek ke warna hijau (0.0f, 1.0f, 0.0f)
     glColor3f(1.0f, 0.5f, 0.5f);
     
-    glutSolidTorus(1.0, 2.0, 50, 50); // menggambar obyek kubus
+    glutSolidTorus(0.2f, 0.5, 50, 50); // menggambar obyek kubus
     
     glPopMatrix();
     
     glPopMatrix();
     
-    // SPHERE
+     //SOLID THORUS
     glPushMatrix();
     
     // operasi transformasi translasi obyek ke arah sumbu X, Y atau Z
-    glTranslatef(objectPositionX, objectPositionY, objectPositionZ);
+    glTranslatef(objectPositionX+1, objectPositionY-1, objectPositionZ-0.5);
     
     // operasi transformasi scaling obyek ke arah sumbu X, Y atau Z
     glScalef(objectScaleX, objectScaleY, objectScaleZ);
@@ -106,9 +134,9 @@ void drawObject()
     glRotatef(objectAngleX, 1.0f, 0.0f, 0.0f);
     
     // set warna obyek ke warna hijau (0.0f, 1.0f, 0.0f)
-    glColor3f(1.0f, 0.4f, 0.7f);
+    glColor3f(1.0f, 0.4f, 1.0f);
     
-    glutSolidSphere(1.0, 50, 50); // menggambar obyek kubus
+    glutSolidSphere(0.8f, 50, 50); // menggambar obyek kubus
     
     glPopMatrix();
     
@@ -276,7 +304,7 @@ int main(int argc, char** argv)
     // set ukuran jendela tampilan
     glutInitWindowSize(480, 480);      // besarnya jendela dalam piksel
     glutInitWindowPosition(100, 100);  // posisi jendela dilayar komputer
-    glutCreateWindow("NAMA / NIM - KODE DASAR PRAKTIKUM GRAFIKA KOMPUTER");
+    glutCreateWindow("LUTFAN ALAUDIN NAJA / 2400018032 - KODE DASAR PRAKTIKUM GRAFIKA KOMPUTER");
 
     // panggil fungsi init untuk inisialisasi awal
     init();
