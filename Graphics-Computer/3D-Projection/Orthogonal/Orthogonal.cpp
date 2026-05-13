@@ -4,28 +4,31 @@
 
 #include <GL/glut.h>
 
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 800
+
 // posisi sumber cahaya
 // posisi sumber cahaya utk perspektif
-float position[] = {0.0f,5.0f,5.0f,1.0f};
+//float position[] = {0.0f,5.0f,5.0f,1.0f};
 // posisi sumber cahaya utk orthogonal
-//float position[] = {0.0f,100.0f,-100.0f,1.0f};
+float position[] = {0.0f,100.0f,-100.0f,1.0f};
 
 // inisialisasi variabel untuk transformasi seperti translasi, rotasi atau scaling
-float angle = 0.0f;         // sudut transformasi kamera
+float angle = 0.0f;        // sudut transformasi kamera
 float posX = 0.0f, rotX = 0.0f;   // posisi kamera di sumbu X
 float posY = 0.0f, rotY = 0.0f;   // posisi kamera di sumbu Y
-float posZ = 5.0f, rotZ = -1.0f;  // posisi kamera di sumbu Z
+float posZ = 0.0f, rotZ = -1.0f;  // posisi kamera di sumbu Z
 
-float objectAngleX = 0.0f;  // sudut tranformasi obyek di sumbu X
-float objectAngleY = 0.0f;  // sudut tranformasi obyek di sumbu Y
-float objectAngleZ = 0.0f;  // sudut tranformasi obyek di sumbu Z
+float objectAngleX = 0.0f;  // sudut transformasi obyek di sumbu X
+float objectAngleY = 0.0f;  // sudut transformasi obyek di sumbu Y
+float objectAngleZ = 0.0f;  // sudut transformasi obyek di sumbu Z
 
 // fungsi untuk menggambar obyek kubus
 void drawObject()
 {
     // obyek bisa dimasukkan diantara glPushMatrix() dan glPopMatrix()
     // fungsinya agar obyek tidak terpengaruh atau mempengaruhi obyek lain
-    // saat diawani, ditransformasi dan sebagainya
+    // saat disawani, ditransformasi dan sebagainya
     glPushMatrix();
 
     // operasi transformasi rotasi obyek ke arah kanan-kiri
@@ -41,7 +44,7 @@ void drawObject()
 
     // bila menggambar obyek harus diawali glBegin(tipe obyek) dan diakhiri dengan glEnd()
     // kecuali menggunakan fungsi yang sudah ada di GLUT-OpenGL seperti dibawah ini
-    glutSolidCube(1.0f); // menggambar obyek kubus
+    glutSolidCube(50.0f); // menggambar obyek kubus di proyeksi orthogonal.
 
     glPopMatrix();
 
@@ -73,13 +76,12 @@ void init(void)
 {
     // inisialisasi warna latar belakang layar dalam hal ini warna putih (1.0, 1.0, 1.0, 0.0)
     glClearColor(1.0, 1.0, 1.0, 0.0);
-    glEnable(GL_DEPTH_TEST);       // mengaktifkan depth buffer
+    glEnable(GL_DEPTH_TEST);      // mengaktifkan depth buffer
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(45, 1.0, 1.0, 100.0); // set proyeksi ke perspektif
+    glOrtho((GLfloat)-SCREEN_WIDTH/2, (GLfloat)SCREEN_WIDTH/2, (GLfloat)-SCREEN_HEIGHT/2, (GLfloat)SCREEN_HEIGHT/2, 1.0, 100.0);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    // inisialisasi kamera pandang
     gluLookAt(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
     // aktifkan pencahayaan
     glEnable(GL_LIGHTING);
@@ -93,7 +95,7 @@ void reshape(int w, int h)
     glViewport(0, 0, (GLsizei)w, (GLsizei)h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(45, (GLfloat)w / (GLfloat)h, 1.0, 100.0);
+    glOrtho((GLfloat)-w/2, (GLfloat)w/2, (GLfloat)-h/2, (GLfloat)h/2, 1.0, 100.0);
     glMatrixMode(GL_MODELVIEW);
 }
 
@@ -144,13 +146,6 @@ void keyboard(int key, int x, int y)
     }
 }
 
-// timer untuk animasi (gunakan bila perlu)
-void timer(int value)
-{
-    glutPostRedisplay();
-    glutTimerFunc(55, timer, 0);
-}
-
 // program utama
 int main(int argc, char** argv)
 {
@@ -164,7 +159,7 @@ int main(int argc, char** argv)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
 
     // set ukuran jendela tampilan
-    glutInitWindowSize(800, 800);    // besarnya jendela dalam piksel dalam hal ini 300x300
+    glutInitWindowSize(800, 800);   // besarnya jendela dalam piksel dalam hal ini 300x300
     glutInitWindowPosition(100, 100); // posisi jendela dilayar komputer dalam piksel
     // judul jendela (wajib diubah dengan informasi NAMA / NIM - JUDUL PRAKTIKUM masing-masing)
     glutCreateWindow("2400018032 / LUTFAN ALAUDIN NAJA - KODE DASAR PRAKTIKUM GRAFIKA KOMPUTER");
