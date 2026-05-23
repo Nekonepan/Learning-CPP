@@ -5,8 +5,8 @@ UNAME_S := $(shell uname -s 2>/dev/null)
 
 ifeq ($(origin LDLIBS), undefined)
   ifeq ($(UNAME_S), Darwin)
-    PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags glut glu 2>/dev/null)
-    PKG_LDLIBS := $(shell $(PKG_CONFIG) --libs glut glu 2>/dev/null)
+    PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags glut glu gl 2>/dev/null)
+    PKG_LDLIBS := $(shell $(PKG_CONFIG) --libs glut glu gl 2>/dev/null)
     CXXFLAGS += $(PKG_CFLAGS)
     ifneq ($(strip $(PKG_LDLIBS)),)
       LDLIBS := $(PKG_LDLIBS)
@@ -20,13 +20,13 @@ ifeq ($(origin LDLIBS), undefined)
   else ifneq (,$(findstring CYGWIN,$(UNAME_S)))
     LDLIBS := -lglut -lGLU -lGL
   else
-    PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags glut glu 2>/dev/null)
-    PKG_LDLIBS := $(shell $(PKG_CONFIG) --libs glut glu 2>/dev/null)
+    PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags glut glu gl 2>/dev/null)
+    PKG_LDLIBS := $(shell $(PKG_CONFIG) --libs glut glu gl 2>/dev/null)
     CXXFLAGS += $(PKG_CFLAGS)
     ifneq ($(strip $(PKG_LDLIBS)),)
       LDLIBS := $(PKG_LDLIBS)
     else
-      LDLIBS := -lGL -lGLU -lglut
+      LDLIBS := -lglut -lGLU -lGL
     endif
   endif
 endif
