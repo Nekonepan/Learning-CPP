@@ -168,13 +168,13 @@ int main(int argc, char** argv) {
 	graph.setNumNodes(8);
 	// tambahkan nodes
 	graph.addNode(0, 0, 1.1f);
-	graph.addNode(1, 0, 1.5f);
+	graph.addNode(1, 0, 1.05f);
 	graph.addNode(2, 1, 0.9f);
 	graph.addNode(3, 1, 1.05f);
-	graph.addNode(4, 1, 1.65f);
+	graph.addNode(4, 1, 1.15f);
 	graph.addNode(5, 3, 0.9f);
 	graph.addNode(6, 3, 1.05f);
-	graph.addNode(7, 3, 1.65f);
+	graph.addNode(7, 3, 1.15f);
 	// tambahkan edges
 	graph.addEdge(0, 1);
 	graph.addEdge(0, 2);
@@ -191,14 +191,14 @@ int main(int argc, char** argv) {
 	graph.setNodePosition();
 
     // terapkan BFS
-    int startIdx = 0;
-    cout << "BFS mulai dari node " << startIdx << "\n";
-    BFS(graph, startIdx);
+//	int startIdx = 0;
+//	cout << "BFS mulai dari node " << startIdx << "\n";
+//	BFS(graph, startIdx);
     
     // terapkan DFS
-//	int startIdx = 0;
-//	cout << "DFS mulai dari node " << startIdx << "\n";
-//	DFS(graph, startIdx);
+	int startIdx = 0;
+	cout << "DFS mulai dari node " << startIdx << "\n";
+	DFS(graph, startIdx);
 
     // inisialisasi jendela OpenGL
     glutInit(&argc, argv);
