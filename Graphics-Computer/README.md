@@ -54,6 +54,27 @@ This will:
 2. Compile the program
 3. Run the executable
 
+To see all available Makefile targets and project info, run:
+
+```
+make help
+```
+
+Example output:
+```
+Usage: make [target]
+
+Targets:
+  all     Build and run the program (default)
+  build   Compile the source into build/ directory
+  run     Build (if needed) and execute the program
+  clean   Remove the build/ directory and all compiled files
+  help    Show this help message
+
+Source:  main.cpp
+Output:  main
+```
+
 ### Manual Compilation (if no Makefile)
 ```
 g++ main.cpp -o program -lGL -lGLU -lglut -std=c++17

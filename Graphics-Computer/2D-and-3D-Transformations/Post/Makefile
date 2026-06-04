@@ -36,7 +36,7 @@ BUILD_DIR := $(THIS_DIR)build
 SRC := $(THIS_DIR)Post.cpp
 OUT := $(BUILD_DIR)/Post
 
-.PHONY: all build run clean
+.PHONY: all build run clean help
 all: run
 
 build: $(OUT)
@@ -52,3 +52,16 @@ run: $(OUT)
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+help:
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all     Build and run the program (default)"
+	@echo "  build   Compile the source into build/ directory"
+	@echo "  run     Build (if needed) and execute the program"
+	@echo "  clean   Remove the build/ directory and all compiled files"
+	@echo "  help    Show this help message"
+	@echo ""
+	@echo "Source:  $(notdir $(SRC))"
+	@echo "Output:  $(notdir $(OUT))"
