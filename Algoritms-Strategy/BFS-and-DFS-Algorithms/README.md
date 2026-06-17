@@ -60,6 +60,13 @@ cd Learning-CPP/Algoritms-Strategy/BFS-and-DFS-Algorithms/BFS-and-DFS
 make run
 ```
 
+### Manual Compilation (if no Makefile)
+
+```bash
+g++ *.cpp -o program -lGL -lGLU -lglut
+./program
+```
+
 To see all available Makefile targets:
 
 ```bash

@@ -59,6 +59,13 @@ cd Learning-CPP/Graphics-Computer/2D-and-3D-Transformations/Transformation
 make run
 ```
 
+### Manual Compilation (if no Makefile)
+
+```bash
+g++ *.cpp -o program -lGL -lGLU -lglut
+./program
+```
+
 ---
 
 ## Controls

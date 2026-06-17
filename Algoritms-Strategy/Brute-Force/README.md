@@ -66,6 +66,13 @@ cd Learning-CPP/Algoritms-Strategy/Brute-Force/Checking-prime-numbers
 make run
 ```
 
+### Manual Compilation (if no Makefile)
+
+```bash
+g++ *.cpp -o program -std=c++17
+./program
+```
+
 ---
 
 ## Requirements / Dependencies

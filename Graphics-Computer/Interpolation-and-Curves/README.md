@@ -63,6 +63,13 @@ cd Learning-CPP/Graphics-Computer/Interpolation-and-Curves/Interpolation-linear
 make run
 ```
 
+### Manual Compilation (if no Makefile)
+
+```bash
+g++ *.cpp -o program -lGL -lGLU -lglut
+./program
+```
+
 ---
 
 ## Controls
