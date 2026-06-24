@@ -34,13 +34,21 @@ The demo renders animated metaball surfaces in a 480×480 window with interactiv
 
 ```
 3D-Object-Modeling-Technique/
-└── 3D-Object-Modeling-Technique/
-    ├── main.cpp              # Main program with metaball animation
-    ├── COLOR.h / COLOR.cpp   # RGBA colour class
-    ├── CUBE_GRID.h / .cpp    # Cube grid & Marching Cubes surface extraction
-    ├── METABALL.h             # Metaball data structure
-    ├── VECTOR3D.h / .cpp     # 3D vector math class
-    ├── TIMER.h / TIMER.cpp   # Cross-platform timer (std::chrono)
+├── 3D-Object-Modeling-Technique/
+│   ├── main.cpp              # Main program with metaball animation
+│   ├── COLOR.h / COLOR.cpp   # RGBA colour class
+│   ├── CUBE_GRID.h / .cpp    # Cube grid & Marching Cubes surface extraction
+│   ├── METABALL.h             # Metaball data structure
+│   ├── VECTOR3D.h / .cpp     # 3D vector math class
+│   ├── TIMER.h / TIMER.cpp   # Cross-platform timer (std::chrono)
+│   └── Makefile
+└── Post/
+    ├── main.cpp              # Post exercise version
+    ├── COLOR.h / COLOR.cpp
+    ├── CUBE_GRID.h / .cpp
+    ├── METABALL.h
+    ├── VECTOR3D.h / .cpp
+    ├── TIMER.h / TIMER.cpp
     └── Makefile
 ```
 
@@ -48,7 +56,7 @@ The demo renders animated metaball surfaces in a 480×480 window with interactiv
 
 ## Build & Run
 
-From the subdirectory:
+Each subdirectory is self-contained. From the subdirectory:
 
 ```bash
 make run
