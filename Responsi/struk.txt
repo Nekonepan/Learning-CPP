@@ -1,0 +1,22 @@
+===== STRUK PARKIR =====
+Nama Pemilik    : Upan
+Jenis Kendaraan : Mobil
+Nomor Kendaraan : A001
+Lama Parkir     : 1 jam
+Status Parkir   : Parkir Biasa
+Metode Bayar    : Tunai
+Status Bayar    : Sudah Bayar
+Total Bayar     : Rp 5000
+========================
+
+===== STRUK PARKIR =====
+Nama Pemilik    : Upantek
+Jenis Kendaraan : Motor
+Nomor Kendaraan : A002
+Lama Parkir     : 2 jam
+Status Parkir   : Parkir Biasa
+Metode Bayar    : Tunai
+Status Bayar    : Belum Bayar
+Total Bayar     : Rp 4000
+========================
+
