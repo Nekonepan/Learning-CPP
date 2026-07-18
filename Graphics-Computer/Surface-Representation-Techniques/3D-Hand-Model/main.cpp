@@ -422,6 +422,8 @@ bool useFlatShading = true;
 const int numColors = 4;
 COLOR diffuseColors[numColors];
 int currentColorIdx = 0;
+bool autoCycleColor = true;
+int colorCycleDelayMs = 2000; // 2 seconds
 COLOR backgroundColor(0.12f, 0.12f, 0.15f, 1.0f);
 
 // Lighting
@@ -657,6 +659,11 @@ void keyboardNormal(unsigned char key, int x, int y) {
         autoRotate = !autoRotate;
         printf("[Animasi] Auto-rotasi: %s\n", autoRotate ? "Aktif" : "Nonaktif");
         break;
+    case 'C':
+    case 'c':
+        autoCycleColor = !autoCycleColor;
+        printf("[Warna] Auto-cycle warna: %s\n", autoCycleColor ? "Aktif" : "Nonaktif");
+        break;
     case 'R':
     case 'r':
         objectAngleX = 25.0f;
@@ -680,6 +687,14 @@ void timer(int value) {
     glutTimerFunc(16, timer, 0); // ~60 FPS
 }
 
+void colorTimer(int value) {
+    if (autoCycleColor) {
+        currentColorIdx = (currentColorIdx + 1) % numColors;
+        glutPostRedisplay();
+    }
+    glutTimerFunc(colorCycleDelayMs, colorTimer, 0);
+}
+
 // ====================== Program Utama ======================
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
@@ -700,7 +715,8 @@ int main(int argc, char** argv) {
     printf("     W / w        : Toggle Wireframe Overlay (ON / OFF)\n");
     printf("     Panah Arah   : Rotasi Obyek (Kiri/Kanan/Atas/Bawah)\n");
     printf("     Page Up/Down : Zoom In / Zoom Out\n");
-    printf("     1 - 4        : Preset Warna (Marmer / Kulit / Perunggu / Giok)\n");
+    printf("     1 - 4        : Preset Warna (Putih / Merah / Hijau / Biru)\n");
+    printf("     C / c        : Toggle Auto-Cycle Warna (Aktif / Nonaktif)\n");
     printf("     Spasi        : Toggle Auto-rotasi\n");
     printf("     R / r        : Reset Posisi Kamera dan Obyek\n");
     printf("     ESC          : Keluar\n");
@@ -711,6 +727,7 @@ int main(int argc, char** argv) {
     glutSpecialFunc(keyboardSpecial);
     glutKeyboardFunc(keyboardNormal);
     glutTimerFunc(0, timer, 0);
+    glutTimerFunc(colorCycleDelayMs, colorTimer, 0);
 
     glutMainLoop();
     return 0;
