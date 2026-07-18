@@ -10,10 +10,9 @@
 This project demonstrates **surface representation techniques** in computer graphics using OpenGL and GLUT. It includes implementations of:
 
 - **NURBS Surfaces**: Non-Uniform Rational B-Spline surface rendering using GLU NURBS.
-- **Control Point Visualisation**: Toggle display of control points over the surface.
+- **Subdivision Surfaces**: 3D hand model generated procedurally and refined dynamically via Catmull-Clark subdivision algorithm.
+- **Control Point & Wireframe Visualisation**: Toggle display of control points / subdivision meshes.
 - **Lighting & Materials**: Diffuse/specular material properties with OpenGL lighting.
-
-Each demo renders a NURBS surface with a 4×4 control point grid in a 480×480 window with interactive rotation.
 
 ---
 
@@ -21,8 +20,8 @@ Each demo renders a NURBS surface with a 4×4 control point grid in a 480×480 w
 
 - Interactive rotation of the surface using arrow keys.
 - Camera movement with Page Up / Page Down.
-- Toggle control point display with F1.
-- NURBS surface rendering with lighting and materials.
+- Toggle control point display (for NURBS) or wireframe overlay (for Subdivision).
+- NURBS surface and Subdivision mesh rendering with lightings.
 - Built with standard C++17, OpenGL, GLUT.
 - Simple Makefiles for easy build & run.
 
@@ -32,6 +31,12 @@ Each demo renders a NURBS surface with a 4×4 control point grid in a 480×480 w
 
 ```
 Surface-Representation-Techniques/
+├── 3D-Hand-Model/
+│   ├── main.cpp              # 3D hand model using Catmull-Clark subdivision
+│   ├── COLOR.h / COLOR.cpp   # RGBA color helper class
+│   ├── VECTOR3D.h / .cpp     # 3D vector helper class
+│   ├── TIMER.h / TIMER.cpp   # Timer helper class
+│   └── Makefile
 ├── Surface-Representation-Techniques-V1/
 │   ├── main.cpp
 │   └── Makefile
@@ -62,6 +67,13 @@ cd Learning-CPP/Graphics-Computer/Surface-Representation-Techniques/Surface-Repr
 make run
 ```
 
+**Example for 3D Hand Model (Subdivision):**
+
+```bash
+cd Learning-CPP/Graphics-Computer/Surface-Representation-Techniques/3D-Hand-Model
+make run
+```
+
 ### Manual Compilation (if no Makefile)
 
 ```bash
@@ -75,9 +87,15 @@ g++ *.cpp -o program -lGL -lGLU -lglut
 
 - **← →**: Rotate horizontally
 - **↑ ↓**: Rotate vertically
-- **Page Up**: Move camera forward
-- **Page Down**: Move camera backward
-- **F1**: Toggle control points visibility
+- **Page Up**: Zoom in / Move camera forward
+- **Page Down**: Zoom out / Move camera backward
+- **F1**: Toggle control points visibility (NURBS only)
+- **+ / -**: Increase/Decrease subdivision level (Subdivision only)
+- **S / s**: Toggle Shading (Flat Faceted / Smooth Organic - Subdivision only)
+- **W / w**: Toggle Wireframe Overlay (Subdivision only)
+- **1 - 4**: Switch colors (Subdivision only)
+- **Space**: Toggle auto-rotation (Subdivision only)
+- **R / r**: Reset camera (Subdivision only)
 
 ---
 
