@@ -23,7 +23,7 @@ This project implements a **3D Hand Model** using the **Catmull-Clark Subdivisio
 | **`-` / `_`** | **Decrease Subdivision Level** (Level 3 $\rightarrow$ 0) |
 | **`S` / `s`** | **Toggle Shading** (Flat Faceted / Smooth Shading) |
 | **`W` / `w`** | **Toggle Wireframe Overlay** (ON / OFF) |
-| **`1` / `2` / `3` / `4`** | **Switch Color Presets** (1: Marble, 2: Skin, 3: Bronze, 4: Jade) |
+| **`1` / `2` / `3` / `4`** | **Switch Color Presets** (1: White, 2: Red, 3: Green, 4: Blue) |
 | **`Space`** | **Toggle Auto-Rotation** |
 | **`R` / `r`** | **Reset Camera & Zoom** |
 | **Arrow Keys (`← → ↑ ↓`)** | Rotate hand horizontally/vertically |

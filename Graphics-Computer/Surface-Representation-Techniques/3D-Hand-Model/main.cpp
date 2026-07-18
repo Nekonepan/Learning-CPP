@@ -548,10 +548,10 @@ void init(void) {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    diffuseColors[0].Set(0.70f, 0.72f, 0.78f, 1.0f);
-    diffuseColors[1].Set(0.85f, 0.65f, 0.52f, 1.0f);
-    diffuseColors[2].Set(0.75f, 0.55f, 0.30f, 1.0f);
-    diffuseColors[3].Set(0.25f, 0.65f, 0.45f, 1.0f);
+    diffuseColors[0].Set(0.95f, 0.95f, 0.95f, 1.0f); // White
+    diffuseColors[1].Set(0.85f, 0.15f, 0.15f, 1.0f); // Red
+    diffuseColors[2].Set(0.15f, 0.70f, 0.25f, 1.0f); // Green
+    diffuseColors[3].Set(0.15f, 0.35f, 0.85f, 1.0f); // Blue
 
     printf("[Init] Menghasilkan base control mesh tangan (Level 0)...\n");
     subdividedMeshes[0] = CreateBaseHand();
