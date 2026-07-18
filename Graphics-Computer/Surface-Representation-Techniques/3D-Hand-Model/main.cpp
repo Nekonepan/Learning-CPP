@@ -422,7 +422,7 @@ bool useFlatShading = true;
 const int numColors = 4;
 COLOR diffuseColors[numColors];
 int currentColorIdx = 0;
-bool autoCycleColor = true;
+bool autoCycleColor = false;
 int colorCycleDelayMs = 2000; // 2 seconds
 COLOR backgroundColor(0.12f, 0.12f, 0.15f, 1.0f);
 
