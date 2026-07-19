@@ -1,30 +1,36 @@
 // ======================================================================================
 // main.cpp
-// 3D Hand Model menggunakan Subdivision Technique (Catmull-Clark)
+// 3D Hand Model with Articulated Fingers — Catmull-Clark Subdivision Surface
 //
-// Program ini mendemonstrasikan pembentukan model tangan 3D dengan metode Subdivision.
-// Mesh kontrol dasar (base mesh) berupa telapak tangan dan 5 jari yang diekstrusi
-// disubdivisi secara rekursif menggunakan algoritma Catmull-Clark.
+// Program ini mendemonstrasikan model tangan 3D dengan jari-jari yang dapat digerakkan
+// (artikulasi) menggunakan teknik Subdivision Surface (Catmull-Clark).
+//
+// Setiap ruas jari merupakan mesh box terpisah yang disubdivisi dan dirender secara
+// hierarkis menggunakan OpenGL matrix stack (glPushMatrix / glRotatef / glTranslatef).
 //
 // Fitur:
+//   - Artikulasi jari: setiap jari memiliki 3 sendi yang dapat ditekuk
+//   - Animasi Grab: mengepalkan dan membuka tangan secara otomatis
 //   - Pilihan Tingkat Subdivision (Level 0 - 3) secara real-time
-//   - Tampilan Wireframe overlay untuk melihat struktur mesh subdivisi
-//   - Pilihan Shading: Flat (low-poly / faceted look) dan Smooth (organic look)
-//   - Preset warna pencahayaan dramatis (Marmer, Kulit, Perunggu, Giok)
-//   - Kontrol kamera interaktif (rotasi, zoom, reset, auto-rotate)
+//   - Tampilan Wireframe overlay
+//   - Pilihan Shading: Flat dan Smooth
+//   - Preset warna dan auto-cycle warna
+//   - Kontrol kamera interaktif
 //
 // Kontrol Keyboard:
-//   Panah Kiri/Kanan : Rotasi horizontal obyek
-//   Panah Atas/Bawah : Rotasi vertikal obyek
-//   Page Up/Down     : Zoom in/out kamera
-//   + / =            : Naikkan tingkat subdivision (maks level 3)
-//   - / _            : Turunkan tingkat subdivision (min level 0)
-//   S / s            : Toggle Shading (Flat / Smooth)
-//   W / w            : Toggle Wireframe overlay
-//   1, 2, 3, 4       : Preset Warna (Marmer / Kulit / Perunggu / Giok)
-//   Spasi            : Toggle Auto-rotasi
-//   R / r            : Reset kamera ke posisi awal
-//   ESC              : Keluar program
+//   Tab          : Pilih jari (Semua/Jempol/Telunjuk/Tengah/Manis/Kelingking)
+//   Q / q        : Tekuk jari terpilih (+10°)
+//   A / a        : Luruskan jari terpilih (-10°)
+//   G / g        : Toggle Animasi Grab (mengepal/membuka)
+//   + / =        : Naikkan tingkat subdivision (maks level 3)
+//   - / _        : Turunkan tingkat subdivision (min level 0)
+//   S / s        : Toggle Shading (Flat / Smooth)
+//   W / w        : Toggle Wireframe overlay
+//   1, 2, 3, 4   : Preset Warna (Putih / Merah / Hijau / Biru)
+//   C / c        : Toggle Auto-cycle Warna
+//   Spasi        : Toggle Auto-rotasi
+//   R / r        : Reset kamera dan posisi jari
+//   ESC          : Keluar program
 // ======================================================================================
 
 #ifdef _WIN32
@@ -36,6 +42,7 @@
 #include <map>
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 
 #include "VECTOR3D.h"
 #include "COLOR.h"
@@ -252,167 +259,228 @@ Mesh SubdivideCatmullClark(const Mesh& input) {
     return output;
 }
 
-// ====================== Helper Ekstrusi Mesh ======================
-int ExtrudeFace(Mesh& mesh, int faceIndex, const VECTOR3D& direction, float length, float scale = 0.9f) {
-    Face origFace = mesh.faces[faceIndex];
-    size_t numVerts = origFace.vertexIndices.size();
-
-    VECTOR3D center(0.0f, 0.0f, 0.0f);
-    for (int idx : origFace.vertexIndices) {
-        center += mesh.vertices[idx].position;
-    }
-    center /= (float)numVerts;
-
-    std::vector<int> newVertIndices(numVerts);
-    for (size_t i = 0; i < numVerts; ++i) {
-        int oldIdx = origFace.vertexIndices[i];
-        VECTOR3D oldPos = mesh.vertices[oldIdx].position;
-
-        VECTOR3D newPos = oldPos + direction * length;
-        newPos = center + direction * length + (newPos - (center + direction * length)) * scale;
-
-        Vertex v;
-        v.position = newPos;
-        mesh.vertices.push_back(v);
-        newVertIndices[i] = mesh.vertices.size() - 1;
-    }
-
-    for (size_t i = 0; i < numVerts; ++i) {
-        int v_old_curr = origFace.vertexIndices[i];
-        int v_old_next = origFace.vertexIndices[(i + 1) % numVerts];
-        int v_new_curr = newVertIndices[i];
-        int v_new_next = newVertIndices[(i + 1) % numVerts];
-
-        Face sideFace;
-        sideFace.vertexIndices = { v_old_curr, v_old_next, v_new_next, v_new_curr };
-        mesh.faces.push_back(sideFace);
-    }
-
-    mesh.faces[faceIndex].vertexIndices = newVertIndices;
-    return faceIndex;
-}
-
-void ExtrudeFinger(Mesh& mesh, int faceIdx, const VECTOR3D& dir, const std::vector<float>& lengths, const std::vector<float>& scales) {
-    int currentFace = faceIdx;
-    for (size_t i = 0; i < lengths.size(); ++i) {
-        currentFace = ExtrudeFace(mesh, currentFace, dir, lengths[i], scales[i]);
-    }
-}
-
-// ====================== Generator Base Mesh Tangan (Hand) ======================
-Mesh CreateBaseHand() {
+// ====================== Generator Mesh Box ======================
+// Membuat box dengan 3 baris vertex (bottom, middle, top) untuk kualitas
+// subdivisi yang lebih baik. Box berorientasi vertikal: basis di y=0, puncak di y=1.
+// topTaper mengatur seberapa besar puncak menyempit (0.0-1.0, 1.0 = tidak menyempit).
+Mesh createUnitSegmentBox(float topTaper = 0.85f) {
     Mesh mesh;
+    float t = 0.5f * topTaper;
+    float m = (0.5f + t) * 0.5f; // middle row interpolation
 
-    // 1. Definisikan koordinat dasar telapak tangan (Palm)
-    for (int r = 0; r <= 2; ++r) {
-        float y = -2.0f + 1.5f * r;
-        float thickness = -0.4f - 0.05f * r;
-        for (int c = 0; c < 5; ++c) {
-            float x = -1.5f + 3.0f * (c / 4.0f);
-            float curve = 0.15f * (1.0f - (x * x) / 3.0f);
-            
-            Vertex v;
-            v.position.Set(x, y, thickness + curve);
-            mesh.vertices.push_back(v);
-        }
-    }
+    auto addVert = [&](float x, float y, float z) {
+        Vertex v;
+        v.position.Set(x, y, z);
+        mesh.vertices.push_back(v);
+    };
 
-    for (int r = 0; r <= 2; ++r) {
-        float y = -2.0f + 1.5f * r;
-        float thickness = 0.4f + 0.05f * r;
-        for (int c = 0; c < 5; ++c) {
-            float x = -1.5f + 3.0f * (c / 4.0f);
-            float curve = 0.15f * (1.0f - (x * x) / 3.0f);
-            
-            Vertex v;
-            v.position.Set(x, y, thickness + curve);
-            mesh.vertices.push_back(v);
-        }
-    }
+    // Bottom row (y=0.0)
+    addVert(-0.50f, 0.0f, -0.50f); // 0
+    addVert( 0.50f, 0.0f, -0.50f); // 1
+    addVert( 0.50f, 0.0f,  0.50f); // 2
+    addVert(-0.50f, 0.0f,  0.50f); // 3
 
-    // 2. Hubungkan sisi belakang (Back faces)
-    mesh.faces.push_back({ { 0, 5, 6, 1 } });
-    mesh.faces.push_back({ { 1, 6, 7, 2 } });
-    mesh.faces.push_back({ { 2, 7, 8, 3 } });
-    mesh.faces.push_back({ { 3, 8, 9, 4 } });
-    mesh.faces.push_back({ { 5, 10, 11, 6 } });
-    mesh.faces.push_back({ { 6, 11, 12, 7 } });
-    mesh.faces.push_back({ { 7, 12, 13, 8 } });
-    mesh.faces.push_back({ { 8, 13, 14, 9 } });
+    // Middle row (y=0.5)
+    addVert(-m, 0.5f, -m); // 4
+    addVert( m, 0.5f, -m); // 5
+    addVert( m, 0.5f,  m); // 6
+    addVert(-m, 0.5f,  m); // 7
 
-    // 3. Hubungkan sisi depan (Front faces)
-    mesh.faces.push_back({ { 15, 16, 21, 20 } });
-    mesh.faces.push_back({ { 16, 17, 22, 21 } });
-    mesh.faces.push_back({ { 17, 18, 23, 22 } });
-    mesh.faces.push_back({ { 18, 19, 24, 23 } });
-    mesh.faces.push_back({ { 20, 21, 26, 25 } });
-    mesh.faces.push_back({ { 21, 22, 27, 26 } });
-    mesh.faces.push_back({ { 22, 23, 28, 27 } });
-    mesh.faces.push_back({ { 23, 24, 29, 28 } });
+    // Top row (y=1.0, tapered)
+    addVert(-t, 1.0f, -t); // 8
+    addVert( t, 1.0f, -t); // 9
+    addVert( t, 1.0f,  t); // 10
+    addVert(-t, 1.0f,  t); // 11
 
-    // 4. Hubungkan sisi samping kiri (pinky side)
-    mesh.faces.push_back({ { 0, 15, 20, 5 } });
-    mesh.faces.push_back({ { 5, 20, 25, 10 } });
+    // Faces (CCW outward winding)
+    // Bottom cap (normal -Y)
+    mesh.faces.push_back({{ 0, 1, 2, 3 }});
+    // Top cap (normal +Y)
+    mesh.faces.push_back({{ 8, 11, 10, 9 }});
 
-    // 5. Hubungkan sisi samping kanan (thumb/index side)
-    mesh.faces.push_back({ { 4, 9, 24, 19 } });
-    mesh.faces.push_back({ { 9, 14, 29, 24 } }); // Ini index face 19: Thumb base!
+    // Back side -Z: bottom tier & top tier
+    mesh.faces.push_back({{ 0, 4, 5, 1 }});
+    mesh.faces.push_back({{ 4, 8, 9, 5 }});
 
-    // 6. Hubungkan knuckle faces di bagian atas
-    mesh.faces.push_back({ { 10, 25, 26, 11 } }); // Face 20: Pinky knuckle
-    mesh.faces.push_back({ { 11, 26, 27, 12 } }); // Face 21: Ring knuckle
-    mesh.faces.push_back({ { 12, 27, 28, 13 } }); // Face 22: Middle knuckle
-    mesh.faces.push_back({ { 13, 28, 29, 14 } }); // Face 23: Index knuckle
+    // Front side +Z
+    mesh.faces.push_back({{ 3, 2, 6, 7 }});
+    mesh.faces.push_back({{ 7, 6, 10, 11 }});
 
-    // 7. Tutup bagian bawah pergelangan tangan (wrist cap)
-    std::vector<int> wristLoop = { 0, 15, 16, 17, 18, 19, 4, 3, 2, 1 };
-    Vertex vWristCenter;
-    vWristCenter.position.Set(0.0f, -2.3f, 0.0f);
-    mesh.vertices.push_back(vWristCenter);
-    int wristCenterIdx = mesh.vertices.size() - 1;
+    // Left side -X
+    mesh.faces.push_back({{ 0, 3, 7, 4 }});
+    mesh.faces.push_back({{ 4, 7, 11, 8 }});
 
-    for (size_t i = 0; i < wristLoop.size(); ++i) {
-        int v0 = wristLoop[i];
-        int v1 = wristLoop[(i + 1) % wristLoop.size()];
-        mesh.faces.push_back({ { wristCenterIdx, v1, v0 } });
-    }
-
-    // 8. Ekstrusi Jari-Jari
-    // Pinky Finger (Face 20)
-    ExtrudeFinger(mesh, 20, VECTOR3D(-0.15f, 1.0f, 0.05f).GetNormalized(),
-                  { 0.7f, 0.6f, 0.5f, 0.25f }, { 0.95f, 0.90f, 0.85f, 0.5f });
-
-    // Ring Finger (Face 21)
-    ExtrudeFinger(mesh, 21, VECTOR3D(-0.04f, 1.0f, 0.02f).GetNormalized(),
-                  { 1.0f, 0.8f, 0.7f, 0.35f }, { 0.95f, 0.90f, 0.85f, 0.5f });
-
-    // Middle Finger (Face 22)
-    ExtrudeFinger(mesh, 22, VECTOR3D(0.0f, 1.0f, 0.0f).GetNormalized(),
-                  { 1.1f, 0.9f, 0.8f, 0.35f }, { 0.95f, 0.90f, 0.85f, 0.5f });
-
-    // Index Finger (Face 23)
-    ExtrudeFinger(mesh, 23, VECTOR3D(0.05f, 1.0f, -0.02f).GetNormalized(),
-                  { 1.0f, 0.8f, 0.7f, 0.35f }, { 0.95f, 0.90f, 0.85f, 0.5f });
-
-    // Thumb (Face 19)
-    ExtrudeFinger(mesh, 19, VECTOR3D(0.85f, 0.45f, 0.25f).GetNormalized(),
-                  { 0.8f, 0.7f, 0.35f }, { 0.90f, 0.85f, 0.5f });
+    // Right side +X
+    mesh.faces.push_back({{ 1, 5, 6, 2 }});
+    mesh.faces.push_back({{ 5, 9, 10, 6 }});
 
     mesh.ComputeNormals();
     return mesh;
 }
 
+// Membuat mesh telapak tangan (palm) dengan dimensi langsung.
+Mesh createPalmMesh() {
+    Mesh mesh;
+
+    auto addVert = [&](float x, float y, float z) {
+        Vertex v;
+        v.position.Set(x, y, z);
+        mesh.vertices.push_back(v);
+    };
+
+    // Bottom row (y=0, wrist) — narrower
+    addVert(-1.10f, 0.0f, -0.35f); // 0
+    addVert( 1.10f, 0.0f, -0.35f); // 1
+    addVert( 1.10f, 0.0f,  0.35f); // 2
+    addVert(-1.10f, 0.0f,  0.35f); // 3
+
+    // Middle row (y=1.5) — medium width
+    addVert(-1.35f, 1.5f, -0.40f); // 4
+    addVert( 1.35f, 1.5f, -0.40f); // 5
+    addVert( 1.35f, 1.5f,  0.40f); // 6
+    addVert(-1.35f, 1.5f,  0.40f); // 7
+
+    // Top row (y=3.0, knuckles) — widest
+    addVert(-1.50f, 3.0f, -0.42f); // 8
+    addVert( 1.50f, 3.0f, -0.42f); // 9
+    addVert( 1.50f, 3.0f,  0.42f); // 10
+    addVert(-1.50f, 3.0f,  0.42f); // 11
+
+    // Faces (CCW outward winding) — same pattern as segment box
+    mesh.faces.push_back({{ 0, 1, 2, 3 }});     // Bottom (wrist cap)
+    mesh.faces.push_back({{ 8, 11, 10, 9 }});   // Top (knuckle platform)
+
+    mesh.faces.push_back({{ 0, 4, 5, 1 }});     // Back bottom
+    mesh.faces.push_back({{ 4, 8, 9, 5 }});     // Back top
+
+    mesh.faces.push_back({{ 3, 2, 6, 7 }});     // Front bottom
+    mesh.faces.push_back({{ 7, 6, 10, 11 }});   // Front top
+
+    mesh.faces.push_back({{ 0, 3, 7, 4 }});     // Left bottom (pinky side)
+    mesh.faces.push_back({{ 4, 7, 11, 8 }});    // Left top
+
+    mesh.faces.push_back({{ 1, 5, 6, 2 }});     // Right bottom (thumb side)
+    mesh.faces.push_back({{ 5, 9, 10, 6 }});    // Right top
+
+    mesh.ComputeNormals();
+    return mesh;
+}
+
+// ====================== Struktur Data Skeleton ======================
+struct FingerSegment {
+    float length;
+    float width;
+    float depth;
+};
+
+struct Finger {
+    static const int MAX_SEGMENTS = 3;
+    int numSegments;
+    FingerSegment segments[MAX_SEGMENTS];
+    float bendAngles[MAX_SEGMENTS];   // tekukan sendi (derajat, 0=lurus, positif=menekuk)
+    float maxBend[MAX_SEGMENTS];      // batas maksimum tekukan
+    float fistTarget[MAX_SEGMENTS];   // sudut target saat mengepal
+    VECTOR3D attachPoint;             // titik penempelan pada telapak tangan
+    float baseAngleZ;                 // rotasi dasar sumbu Z (splay jari)
+    float baseAngleX;                 // rotasi dasar sumbu X (tilt)
+};
+
+struct HandSkeleton {
+    Finger fingers[5]; // 0=Thumb, 1=Index, 2=Middle, 3=Ring, 4=Pinky
+};
+
+const char* fingerNames[] = { "Jempol", "Telunjuk", "Tengah", "Manis", "Kelingking", "Semua" };
+
+void initSkeleton(HandSkeleton& sk) {
+    // Thumb (Jempol) — 3 segments: metacarpal, proximal, distal
+    {
+        Finger& f = sk.fingers[0];
+        f.numSegments = 3;
+        f.segments[0] = { 0.75f, 0.60f, 0.55f };
+        f.segments[1] = { 0.60f, 0.52f, 0.50f };
+        f.segments[2] = { 0.42f, 0.42f, 0.42f };
+        f.maxBend[0] = 50.0f;  f.maxBend[1] = 80.0f;  f.maxBend[2] = 60.0f;
+        f.fistTarget[0] = 35.0f; f.fistTarget[1] = 55.0f; f.fistTarget[2] = 40.0f;
+        f.bendAngles[0] = f.bendAngles[1] = f.bendAngles[2] = 0.0f;
+        f.attachPoint.Set(1.40f, 1.0f, 0.10f);
+        f.baseAngleZ = -60.0f;
+        f.baseAngleX = -15.0f;
+    }
+
+    // Index (Telunjuk)
+    {
+        Finger& f = sk.fingers[1];
+        f.numSegments = 3;
+        f.segments[0] = { 0.88f, 0.55f, 0.55f };
+        f.segments[1] = { 0.62f, 0.48f, 0.48f };
+        f.segments[2] = { 0.48f, 0.38f, 0.38f };
+        f.maxBend[0] = 90.0f; f.maxBend[1] = 100.0f; f.maxBend[2] = 70.0f;
+        f.fistTarget[0] = 85.0f; f.fistTarget[1] = 95.0f; f.fistTarget[2] = 65.0f;
+        f.bendAngles[0] = f.bendAngles[1] = f.bendAngles[2] = 0.0f;
+        f.attachPoint.Set(1.12f, 3.0f, 0.0f);
+        f.baseAngleZ = -1.5f;
+        f.baseAngleX = 0.0f;
+    }
+
+    // Middle (Tengah)
+    {
+        Finger& f = sk.fingers[2];
+        f.numSegments = 3;
+        f.segments[0] = { 1.00f, 0.58f, 0.58f };
+        f.segments[1] = { 0.72f, 0.50f, 0.50f };
+        f.segments[2] = { 0.55f, 0.40f, 0.40f };
+        f.maxBend[0] = 90.0f; f.maxBend[1] = 100.0f; f.maxBend[2] = 70.0f;
+        f.fistTarget[0] = 85.0f; f.fistTarget[1] = 95.0f; f.fistTarget[2] = 65.0f;
+        f.bendAngles[0] = f.bendAngles[1] = f.bendAngles[2] = 0.0f;
+        f.attachPoint.Set(0.38f, 3.0f, 0.0f);
+        f.baseAngleZ = 0.0f;
+        f.baseAngleX = 0.0f;
+    }
+
+    // Ring (Manis)
+    {
+        Finger& f = sk.fingers[3];
+        f.numSegments = 3;
+        f.segments[0] = { 0.90f, 0.55f, 0.55f };
+        f.segments[1] = { 0.65f, 0.48f, 0.48f };
+        f.segments[2] = { 0.50f, 0.38f, 0.38f };
+        f.maxBend[0] = 90.0f; f.maxBend[1] = 100.0f; f.maxBend[2] = 70.0f;
+        f.fistTarget[0] = 85.0f; f.fistTarget[1] = 95.0f; f.fistTarget[2] = 65.0f;
+        f.bendAngles[0] = f.bendAngles[1] = f.bendAngles[2] = 0.0f;
+        f.attachPoint.Set(-0.38f, 3.0f, 0.0f);
+        f.baseAngleZ = 1.0f;
+        f.baseAngleX = 0.0f;
+    }
+
+    // Pinky (Kelingking)
+    {
+        Finger& f = sk.fingers[4];
+        f.numSegments = 3;
+        f.segments[0] = { 0.65f, 0.50f, 0.50f };
+        f.segments[1] = { 0.50f, 0.42f, 0.42f };
+        f.segments[2] = { 0.40f, 0.35f, 0.35f };
+        f.maxBend[0] = 90.0f; f.maxBend[1] = 100.0f; f.maxBend[2] = 70.0f;
+        f.fistTarget[0] = 85.0f; f.fistTarget[1] = 95.0f; f.fistTarget[2] = 65.0f;
+        f.bendAngles[0] = f.bendAngles[1] = f.bendAngles[2] = 0.0f;
+        f.attachPoint.Set(-1.12f, 3.0f, 0.0f);
+        f.baseAngleZ = 3.0f;
+        f.baseAngleX = 0.0f;
+    }
+}
+
 // ====================== Variabel Global Program ======================
+// Camera
 float cameraDistance = 14.0f;
-float objectAngleX = 25.0f;
-float objectAngleY = -15.0f;
+float objectAngleX = 15.0f;
+float objectAngleY = -20.0f;
 
 bool autoRotate = false;
 float autoRotateSpeed = 0.5f;
 
-// Subdivision level
+// Subdivision
 int currentLevel = 0;
-Mesh subdividedMeshes[4]; // Cache untuk Level 0, 1, 2, 3
+Mesh segmentMeshes[4]; // Cache unit segment box levels 0-3
+Mesh palmMeshes[4];    // Cache palm mesh levels 0-3
 
 // Render settings
 bool showWireframe = true;
@@ -423,19 +491,30 @@ const int numColors = 4;
 COLOR diffuseColors[numColors];
 int currentColorIdx = 0;
 bool autoCycleColor = false;
-int colorCycleDelayMs = 2000; // 2 seconds
+int colorCycleDelayMs = 2000;
 COLOR backgroundColor(0.12f, 0.12f, 0.15f, 1.0f);
+float matWhite[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 // Lighting
 float shininess = 40.0f;
-float lightPosition0[] = { -3.0f,  4.0f,  5.0f, 0.0f }; // Key light
+float lightPosition0[] = { -3.0f,  4.0f,  5.0f, 0.0f };
 float lightAmbient0[]  = {  0.15f, 0.15f, 0.18f, 1.0f };
 float lightSpecular0[] = {  0.8f,  0.8f,  0.8f,  1.0f };
 
-float lightPosition1[] = {  4.0f, -2.0f,  3.0f, 0.0f }; // Fill light
+float lightPosition1[] = {  4.0f, -2.0f,  3.0f, 0.0f };
 float lightAmbient1[]  = {  0.05f, 0.05f, 0.08f, 1.0f };
 float lightDiffuse1[]  = {  0.30f, 0.33f, 0.45f, 1.0f };
 float lightSpecular1[] = {  0.2f,  0.2f,  0.2f,  1.0f };
+
+// Skeleton & Articulation
+HandSkeleton skeleton;
+int selectedFinger = 5; // 0-4 = specific finger, 5 = all
+float bendStep = 10.0f;
+
+// Grab Animation
+bool grabAnimating = false;
+bool grabTargetClosed = false;
+float grabSpeed = 3.0f; // degrees per frame
 
 // ====================== Menggambar Mesh ======================
 void drawMesh(const Mesh& mesh) {
@@ -499,13 +578,55 @@ void drawMesh(const Mesh& mesh) {
     }
 }
 
+// ====================== Menggambar Jari ======================
+void drawFinger(const Finger& finger, bool isSelected) {
+    glPushMatrix();
+
+    // Pindah ke titik penempelan pada telapak tangan
+    glTranslatef(finger.attachPoint.x, finger.attachPoint.y, finger.attachPoint.z);
+
+    // Rotasi dasar (splay dan tilt)
+    glRotatef(finger.baseAngleZ, 0.0f, 0.0f, 1.0f);
+    glRotatef(finger.baseAngleX, 1.0f, 0.0f, 0.0f);
+
+    for (int i = 0; i < finger.numSegments; ++i) {
+        const FingerSegment& seg = finger.segments[i];
+
+        // Terapkan tekukan sendi (rotasi sumbu X)
+        glRotatef(finger.bendAngles[i], 1.0f, 0.0f, 0.0f);
+
+        // Gambar segmen: scale unit box ke dimensi segmen
+        glPushMatrix();
+        glScalef(seg.width, seg.length, seg.depth);
+        drawMesh(segmentMeshes[currentLevel]);
+        glPopMatrix();
+
+        // Pindah ke ujung segmen untuk sendi berikutnya
+        glTranslatef(0.0f, seg.length, 0.0f);
+    }
+
+    glPopMatrix();
+}
+
+// ====================== Menggambar Seluruh Tangan ======================
+void drawHand() {
+    // Gambar telapak tangan (palm)
+    drawMesh(palmMeshes[currentLevel]);
+
+    // Gambar 5 jari
+    for (int i = 0; i < 5; ++i) {
+        bool isSelected = (selectedFinger == 5 || selectedFinger == i);
+        drawFinger(skeleton.fingers[i], isSelected);
+    }
+}
+
 // ====================== Fungsi Display ======================
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
 
-    gluLookAt(0.0f, 0.0f, cameraDistance, 
-              0.0f, 0.5f, 0.0f, 
+    gluLookAt(0.0f, 0.0f, cameraDistance,
+              0.0f, 1.5f, 0.0f,
               0.0f, 1.0f, 0.0f);
 
     glLightfv(GL_LIGHT0, GL_AMBIENT,  lightAmbient0);
@@ -520,9 +641,9 @@ void display() {
     glLightfv(GL_LIGHT1, GL_SPECULAR, lightSpecular1);
     glEnable(GL_LIGHT1);
 
-    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, white);
-    glMaterialfv(GL_FRONT, GL_SPECULAR, white);
-    glMaterialfv(GL_FRONT, GL_SHININESS, &shininess);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, matWhite);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matWhite);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, &shininess);
 
     glEnable(GL_LIGHTING);
 
@@ -530,7 +651,10 @@ void display() {
     glRotatef(objectAngleY, 0.0f, 1.0f, 0.0f);
     glRotatef(objectAngleX, 1.0f, 0.0f, 0.0f);
 
-    drawMesh(subdividedMeshes[currentLevel]);
+    // Geser tangan ke bawah agar center of mass di tengah viewport
+    glTranslatef(0.0f, -1.5f, 0.0f);
+
+    drawHand();
 
     glPopMatrix();
 
@@ -542,11 +666,12 @@ void display() {
 void init(void) {
     glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
     glEnable(GL_DEPTH_TEST);
-    
+    glEnable(GL_NORMALIZE); // Penting! Menormalisasi normal setelah glScalef
+
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(45.0, 1.0, 1.0, 100.0);
-    
+
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
@@ -555,14 +680,26 @@ void init(void) {
     diffuseColors[2].Set(0.15f, 0.70f, 0.25f, 1.0f); // Green
     diffuseColors[3].Set(0.15f, 0.35f, 0.85f, 1.0f); // Blue
 
-    printf("[Init] Menghasilkan base control mesh tangan (Level 0)...\n");
-    subdividedMeshes[0] = CreateBaseHand();
-    
+    // Inisialisasi skeleton
+    initSkeleton(skeleton);
+
+    // Cache subdivision levels untuk unit segment box
+    printf("[Init] Membuat unit segment box...\n");
+    segmentMeshes[0] = createUnitSegmentBox(0.85f);
     for (int i = 1; i <= 3; ++i) {
-        printf("[Init] Menghitung Subdivision Level %d...\n", i);
-        subdividedMeshes[i] = SubdivideCatmullClark(subdividedMeshes[i - 1]);
+        printf("[Init] Menghitung Segment Subdivision Level %d...\n", i);
+        segmentMeshes[i] = SubdivideCatmullClark(segmentMeshes[i - 1]);
     }
-    printf("[Init] Semua level subdivisi tangan berhasil dikalkulasi!\n");
+
+    // Cache subdivision levels untuk palm mesh
+    printf("[Init] Membuat palm mesh...\n");
+    palmMeshes[0] = createPalmMesh();
+    for (int i = 1; i <= 3; ++i) {
+        printf("[Init] Menghitung Palm Subdivision Level %d...\n", i);
+        palmMeshes[i] = SubdivideCatmullClark(palmMeshes[i - 1]);
+    }
+
+    printf("[Init] Semua mesh berhasil dikalkulasi!\n");
 }
 
 // ====================== Reshape Window ======================
@@ -572,6 +709,34 @@ void reshape(int w, int h) {
     glLoadIdentity();
     gluPerspective(45.0, (GLfloat)w / (GLfloat)h, 1.0, 100.0);
     glMatrixMode(GL_MODELVIEW);
+}
+
+// ====================== Helper Artikulasi ======================
+void bendFinger(int fingerIdx, float delta) {
+    Finger& f = skeleton.fingers[fingerIdx];
+    for (int j = 0; j < f.numSegments; ++j) {
+        f.bendAngles[j] += delta;
+        if (f.bendAngles[j] < 0.0f) f.bendAngles[j] = 0.0f;
+        if (f.bendAngles[j] > f.maxBend[j]) f.bendAngles[j] = f.maxBend[j];
+    }
+}
+
+void bendSelected(float delta) {
+    if (selectedFinger == 5) {
+        for (int i = 0; i < 5; ++i) bendFinger(i, delta);
+    } else {
+        bendFinger(selectedFinger, delta);
+    }
+}
+
+void resetAllFingers() {
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 0; j < skeleton.fingers[i].numSegments; ++j) {
+            skeleton.fingers[i].bendAngles[j] = 0.0f;
+        }
+    }
+    grabAnimating = false;
+    grabTargetClosed = false;
 }
 
 // ====================== Keyboard Special Keys ======================
@@ -609,12 +774,12 @@ void keyboardSpecial(int key, int x, int y) {
 // ====================== Keyboard Normal Keys ======================
 void keyboardNormal(unsigned char key, int x, int y) {
     switch (key) {
+    // Subdivision level
     case '+':
     case '=':
         if (currentLevel < 3) {
             currentLevel++;
-            printf("[Mesh] Mengubah ke tingkat subdivisi Level %d (%zu faces)\n", 
-                   currentLevel, subdividedMeshes[currentLevel].faces.size());
+            printf("[Mesh] Subdivision Level %d\n", currentLevel);
             glutPostRedisplay();
         }
         break;
@@ -622,15 +787,16 @@ void keyboardNormal(unsigned char key, int x, int y) {
     case '_':
         if (currentLevel > 0) {
             currentLevel--;
-            printf("[Mesh] Mengubah ke tingkat subdivisi Level %d (%zu faces)\n", 
-                   currentLevel, subdividedMeshes[currentLevel].faces.size());
+            printf("[Mesh] Subdivision Level %d\n", currentLevel);
             glutPostRedisplay();
         }
         break;
+
+    // Shading & Wireframe
     case 'S':
     case 's':
         useFlatShading = !useFlatShading;
-        printf("[Render] Shading Mode: %s\n", useFlatShading ? "Flat (Faceted)" : "Smooth (Smooth)");
+        printf("[Render] Shading Mode: %s\n", useFlatShading ? "Flat (Faceted)" : "Smooth");
         glutPostRedisplay();
         break;
     case 'W':
@@ -639,38 +805,66 @@ void keyboardNormal(unsigned char key, int x, int y) {
         printf("[Render] Wireframe Overlay: %s\n", showWireframe ? "ON" : "OFF");
         glutPostRedisplay();
         break;
-    case '1':
-        currentColorIdx = 0;
-        glutPostRedisplay();
-        break;
-    case '2':
-        currentColorIdx = 1;
-        glutPostRedisplay();
-        break;
-    case '3':
-        currentColorIdx = 2;
-        glutPostRedisplay();
-        break;
-    case '4':
-        currentColorIdx = 3;
-        glutPostRedisplay();
-        break;
+
+    // Color presets
+    case '1': currentColorIdx = 0; glutPostRedisplay(); break;
+    case '2': currentColorIdx = 1; glutPostRedisplay(); break;
+    case '3': currentColorIdx = 2; glutPostRedisplay(); break;
+    case '4': currentColorIdx = 3; glutPostRedisplay(); break;
+
+    // Auto-rotate
     case ' ':
         autoRotate = !autoRotate;
         printf("[Animasi] Auto-rotasi: %s\n", autoRotate ? "Aktif" : "Nonaktif");
         break;
+
+    // Auto-cycle color
     case 'C':
     case 'c':
         autoCycleColor = !autoCycleColor;
         printf("[Warna] Auto-cycle warna: %s\n", autoCycleColor ? "Aktif" : "Nonaktif");
         break;
-    case 'R':
-    case 'r':
-        objectAngleX = 25.0f;
-        objectAngleY = -15.0f;
-        cameraDistance = 14.0f;
+
+    // Finger selection (Tab)
+    case '\t':
+        selectedFinger = (selectedFinger + 1) % 6;
+        printf("[Jari] Terpilih: %s\n", fingerNames[selectedFinger]);
         glutPostRedisplay();
         break;
+
+    // Bend finger
+    case 'Q':
+    case 'q':
+        bendSelected(bendStep);
+        glutPostRedisplay();
+        break;
+
+    // Straighten finger
+    case 'A':
+    case 'a':
+        bendSelected(-bendStep);
+        glutPostRedisplay();
+        break;
+
+    // Grab animation toggle
+    case 'G':
+    case 'g':
+        grabTargetClosed = !grabTargetClosed;
+        grabAnimating = true;
+        printf("[Animasi] Grab: %s\n", grabTargetClosed ? "Mengepal..." : "Membuka...");
+        break;
+
+    // Reset
+    case 'R':
+    case 'r':
+        objectAngleX = 15.0f;
+        objectAngleY = -20.0f;
+        cameraDistance = 14.0f;
+        resetAllFingers();
+        printf("[Reset] Kamera dan jari direset.\n");
+        glutPostRedisplay();
+        break;
+
     case 27: // ESC
         exit(0);
         break;
@@ -679,11 +873,41 @@ void keyboardNormal(unsigned char key, int x, int y) {
 
 // ====================== Timer Loop ======================
 void timer(int value) {
+    bool needRedraw = false;
+
+    // Auto-rotate
     if (autoRotate) {
         objectAngleY += autoRotateSpeed;
         if (objectAngleY > 360.0f) objectAngleY -= 360.0f;
-        glutPostRedisplay();
+        needRedraw = true;
     }
+
+    // Grab animation
+    if (grabAnimating) {
+        bool allDone = true;
+        for (int i = 0; i < 5; ++i) {
+            Finger& f = skeleton.fingers[i];
+            for (int j = 0; j < f.numSegments; ++j) {
+                float target = grabTargetClosed ? f.fistTarget[j] : 0.0f;
+                if (f.bendAngles[j] < target) {
+                    f.bendAngles[j] += grabSpeed;
+                    if (f.bendAngles[j] > target) f.bendAngles[j] = target;
+                    allDone = false;
+                } else if (f.bendAngles[j] > target) {
+                    f.bendAngles[j] -= grabSpeed;
+                    if (f.bendAngles[j] < target) f.bendAngles[j] = target;
+                    allDone = false;
+                }
+            }
+        }
+        if (allDone) {
+            grabAnimating = false;
+            printf("[Animasi] Grab selesai: %s\n", grabTargetClosed ? "Terkepal" : "Terbuka");
+        }
+        needRedraw = true;
+    }
+
+    if (needRedraw) glutPostRedisplay();
     glutTimerFunc(16, timer, 0); // ~60 FPS
 }
 
@@ -699,26 +923,37 @@ void colorTimer(int value) {
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
-    glutInitWindowSize(640, 640);
+    glutInitWindowSize(720, 720);
     glutInitWindowPosition(100, 100);
-    glutCreateWindow("3D Hand Model - Catmull-Clark Subdivision Technique");
+    glutCreateWindow("3D Hand Model - Articulated Fingers - Catmull-Clark Subdivision");
 
     init();
 
     printf("=================================================================\n");
-    printf("   3D Hand Model - Catmull-Clark Subdivision Surface\n");
+    printf("   3D Hand Model - Articulated Fingers\n");
+    printf("   Catmull-Clark Subdivision Surface\n");
     printf("=================================================================\n");
-    printf("   Kontrol Keyboard:\n");
+    printf("   Kontrol Artikulasi Jari:\n");
+    printf("     Tab          : Pilih jari (Semua/%s/%s/%s/%s/%s)\n",
+           fingerNames[0], fingerNames[1], fingerNames[2],
+           fingerNames[3], fingerNames[4]);
+    printf("     Q / q        : Tekuk jari terpilih (+10)\n");
+    printf("     A / a        : Luruskan jari terpilih (-10)\n");
+    printf("     G / g        : Toggle Animasi Grab (mengepal/membuka)\n");
+    printf("-----------------------------------------------------------------\n");
+    printf("   Kontrol Tampilan:\n");
     printf("     + / =        : Tambah Level Subdivision (maks 3)\n");
     printf("     - / _        : Kurang Level Subdivision (min 0)\n");
     printf("     S / s        : Toggle Shading Mode (Flat / Smooth)\n");
     printf("     W / w        : Toggle Wireframe Overlay (ON / OFF)\n");
-    printf("     Panah Arah   : Rotasi Obyek (Kiri/Kanan/Atas/Bawah)\n");
-    printf("     Page Up/Down : Zoom In / Zoom Out\n");
     printf("     1 - 4        : Preset Warna (Putih / Merah / Hijau / Biru)\n");
-    printf("     C / c        : Toggle Auto-Cycle Warna (Aktif / Nonaktif)\n");
+    printf("     C / c        : Toggle Auto-Cycle Warna\n");
+    printf("-----------------------------------------------------------------\n");
+    printf("   Kontrol Kamera:\n");
+    printf("     Panah Arah   : Rotasi Obyek\n");
+    printf("     Page Up/Down : Zoom In / Zoom Out\n");
     printf("     Spasi        : Toggle Auto-rotasi\n");
-    printf("     R / r        : Reset Posisi Kamera dan Obyek\n");
+    printf("     R / r        : Reset Kamera dan Jari\n");
     printf("     ESC          : Keluar\n");
     printf("=================================================================\n");
 
